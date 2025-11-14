@@ -1,0 +1,9 @@
+from abc import ABC, abstractmethod
+
+class AttendanceRepository(ABC):
+    @abstractmethod
+    def is_registered(self, event_id: int, participant_id: int) -> bool: ...
+    @abstractmethod
+    def register(self, event_id: int, participant_id: int) -> None: ...
+    @abstractmethod
+    def count_attendees(self, event_id: int) -> int: ...

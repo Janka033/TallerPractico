@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: eventia_test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping || exit 1"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    env:
+      DB_URL: mysql+pymysql://test:testpass@127.0.0.1:3306/eventia_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CACHE_TTL_SECONDS: 60
+      PYTHONPATH: src
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for MySQL
+        run: |
+          for i in `seq 1 30`; do
+            (echo > /dev/tcp/127.0.0.1/3306) >/dev/null 2>&1 && echo "MySQL is up" && break
+            echo "Waiting MySQL..."
+            sleep 2
+          done
+
+      - name: Unit tests
+        run: pytest -m unit
+
+      - name: Integration tests
+        run: pytest -m integration
+
+      - name: System tests
+        run: pytest -m system
+
+      - name: Static analysis (Bandit)
+        run: bandit -r src -q || true
+
+      - name: OK status
+        run: echo "OK"
