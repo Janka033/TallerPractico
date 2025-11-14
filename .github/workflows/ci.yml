@@ -15,6 +15,7 @@ jobs:
           MYSQL_DATABASE: eventia_test
           MYSQL_USER: test
           MYSQL_PASSWORD: testpass
+    # Exponer puertos para esperas/compatibilidad
         ports:
           - 3306:3306
         options: >-
@@ -36,7 +37,8 @@ jobs:
       DB_URL: mysql+pymysql://test:testpass@127.0.0.1:3306/eventia_test
       REDIS_URL: redis://127.0.0.1:6379/0
       CACHE_TTL_SECONDS: 60
-      PYTHONPATH: src
+      # Clave: agrega la raíz del repo al sys.path
+      PYTHONPATH: .
 
     steps:
       - name: Checkout
@@ -60,14 +62,14 @@ jobs:
             sleep 2
           done
 
-      - name: Unit tests
-        run: pytest -m unit
+      - name: Unit tests (only unit folder)
+        run: pytest -q tests/unit
 
-      - name: Integration tests
-        run: pytest -m integration
+      - name: Integration tests (only integration folder)
+        run: pytest -q tests/integration
 
-      - name: System tests
-        run: pytest -m system
+      - name: System tests (only system folder)
+        run: pytest -q tests/system
 
       - name: Static analysis (Bandit)
         run: bandit -r src -q || true
