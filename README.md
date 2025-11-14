@@ -1,131 +1,125 @@
 # Eventia Core API
 
-Backend para gestión de eventos, participantes y asistencia con FastAPI, MySQL y caché (Redis). Incluye pruebas (unitarias, integración, sistema) y CI con GitHub Actions.
-
-## Arquitectura (Clean Architecture)
-```
-src/
-  domain/
-    entities/
-    interfaces/
-    services/
-  infrastructure/
-    database/
-      models/
-    repositories/
-    cache/
-    config/
-  application/
-    dtos/
-    controllers/
-    routes/
-  api/
-tests/
-  unit/
-  integration/
-  system/
-```
-
-## Tecnologías
-- Python 3.11+
-- FastAPI, Uvicorn
-- SQLAlchemy + PyMySQL (MySQL/MariaDB)
-- Redis (opcional local; requerido en CI, con fallback en memoria)
-- PyTest (unit, integration, system)
-- Bandit (análisis estático)
-- GitHub Actions (CI)
+Backend para gestionar eventos, participantes y asistencia.
 
 ## Requisitos
 - Python 3.11+
-- XAMPP (MySQL/phpMyAdmin) o MySQL local
-- Opcional: Redis local
-- pip
+- MySQL (por ejemplo XAMPP / MariaDB)
+- (Opcional) Redis
+- Pip
 
-## Instalación (Windows + PowerShell + XAMPP)
-```powershell
-# Clona o descarga el proyecto, luego:
+## Instalación
+```bash
+git clone https://github.com/Janka033/TallerPractico.git
+cd TallerPractico
 python -m venv .venv
+# Windows
 .\.venv\Scripts\Activate.ps1
-pip install --upgrade pip
+# Linux / Mac
+source .venv/bin/activate
 pip install -r requirements.txt
-copy .env.example .env
 ```
 
-Edita `.env` y ajusta tu conexión (root sin contraseña en XAMPP):
+## Configuración (.env)
+Crea `.env` (puedes copiar de `.env.example`):
 ```
 APP_ENV=dev
 DB_URL=mysql+pymysql://root@127.0.0.1:3306/eventia
 REDIS_URL=
 CACHE_TTL_SECONDS=60
 ```
+Crear las bases `eventia` y (para pruebas) `eventia_test` en MySQL.
 
-Crea la base `eventia` en phpMyAdmin:
-- Nueva → Nombre: eventia (sin espacios) → utf8mb4_unicode_ci → Crear
-- Las tablas se crean automáticamente al iniciar la API (init_db()).
-
-## Ejecutar en local
-```powershell
+## Ejecutar API
+```bash
 uvicorn src.api.main:app --reload
 ```
+Verificación:
 - Health: http://127.0.0.1:8000/health
 - Docs: http://127.0.0.1:8000/docs
 
 ## Pruebas
-Usa una base separada para pruebas de sistema: `eventia_test`.
+Usa una BD separada para pruebas de sistema (eventia_test).
 
-1) Crea `eventia_test` en phpMyAdmin (utf8mb4_unicode_ci).
-2) En PowerShell:
+Windows PowerShell:
 ```powershell
 .\.venv\Scripts\Activate.ps1
-# Unitarias
+python -m pytest -q -m unit
+python -m pytest -q tests/integration
+$env:DB_URL="mysql+pymysql://root@127.0.0.1:3306/eventia_test"
+python -m pytest -q tests/system
+```
+
+Linux / Mac:
+```bash
+source .venv/bin/activate
+python -m pytest -q -m unit
+python -m pytest -q tests/integration
+DB_URL="mysql+pymysql://root@127.0.0.1:3306/eventia_test" python -m pytest -q tests/system
+```
+
+## Limpieza rápida BD de pruebas (si repites tests)
+```sql
+SET FOREIGN_KEY_CHECKS=0;
+TRUNCATE TABLE attendance;
+TRUNCATE TABLE participants;
+TRUNCATE TABLE events;
+SET FOREIGN_KEY_CHECKS=1;
+```
+
+## Caché
+Si defines `REDIS_URL` (ej: `redis://127.0.0.1:6379/0`) se usa Redis; si no, caché en memoria.
+
+## Comandos útiles
+
+Entorno virtual (Windows):
+.\.venv\Scripts\Activate.ps1
+
+Entorno virtual (Linux / Mac):
+source .venv/bin/activate
+
+Instalar dependencias:
+pip install -r requirements.txt
+
+Levantar la API (modo desarrollo):
+uvicorn src.api.main:app --reload
+
+Pruebas unitarias:
 python -m pytest -q -m unit
 
-# Integración (usa DB_URL de .env -> apunta a eventia)
-python -m pytest -q -m integration
+Pruebas de integración:
+python -m pytest -q tests/integration
 
-# Sistema/E2E (usa BD de pruebas)
-$env:DB_URL = "mysql+pymysql://root@127.0.0.1:3306/eventia_test"
-python -m pytest -q -m system
-```
+Pruebas de sistema (usar base eventia_test):
+# Windows PowerShell
+$env:DB_URL="mysql+pymysql://root@127.0.0.1:3306/eventia_test"
+python -m pytest -q tests/system
+# Linux / Mac
+DB_URL="mysql+pymysql://root@127.0.0.1:3306/eventia_test" python -m pytest -q tests/system
 
-## Análisis estático (Bandit)
-```powershell
+Análisis estático (Bandit):
 bandit -r src -q
+
+Limpieza rápida de BD de pruebas (SQL):
+SET FOREIGN_KEY_CHECKS=0;
+TRUNCATE TABLE attendance;
+TRUNCATE TABLE participants;
+TRUNCATE TABLE events;
+SET FOREIGN_KEY_CHECKS=1;
+
+## Estructura mínima
+```
+src/
+  api/
+  application/
+  domain/
+  infrastructure/
+tests/
 ```
 
-## CI con GitHub Actions
-El workflow:
-1. Instala dependencias
-2. Levanta MySQL y Redis como servicios
-3. Ejecuta pruebas unitarias, integración y sistema
-4. Ejecuta Bandit
-5. Imprime “OK” si todo pasa
-
-Variables de entorno del job:
-- `DB_URL`: mysql+pymysql://test:testpass@127.0.0.1:3306/eventia_test
-- `REDIS_URL`: redis://127.0.0.1:6379/0
-- `PYTHONPATH`: src
-
-## Docker (opcional, +0.5)
-Requiere Docker Desktop.
-```bash
-docker compose up -d --build
-# API: http://127.0.0.1:8000/health y /docs
-docker compose down -v
-```
-
-## Justificación de tecnologías
-- FastAPI: rendimiento, tipado, OpenAPI.
-- SQLAlchemy: ORM maduro, compatible con MySQL.
-- Redis: mejora de rendimiento (caché de estadísticas), con fallback en memoria para desarrollo.
-- PyTest: facilidad para unit, integration y system tests.
-- Bandit: análisis estático de seguridad.
-- GitHub Actions: CI integrado y reproducible.
-
-## Troubleshooting
-- “No module named 'src'” al correr pytest:
-  - Ejecuta pytest desde la raíz del proyecto y/o define PYTHONPATH=src o usa `tests/conftest.py` (ya incluido).
-- Error 400 al crear participantes en tests de sistema:
-  - Usa la BD `eventia_test` o limpia tablas (TRUNCATE) o usa emails únicos (ver test actualizado).
-- XAMPP MySQL sin contraseña:
-  - Usa: `mysql+pymysql://root@127.0.0.1:3306/eventia` (sin `:password`).
+## Checklist rápido
+- .env creado
+- Dependencias instaladas
+- BD `eventia` creada
+- uvicorn levantado
+- Tests pasan
