@@ -1,4 +1,5 @@
 import os
+import uuid
 import pytest
 from sqlalchemy.orm import Session
 from src.infrastructure.database.base import get_session_factory, init_db
@@ -31,14 +32,18 @@ def test_event_repo_crud():
 
 def test_attendance_repo_counts():
     require_db()
+    suf = uuid.uuid4().hex[:6]
+    email1 = f"a1_{suf}@example.com"
+    email2 = f"b1_{suf}@example.com"
+
     SessionLocal = get_session_factory()
     with SessionLocal() as db:
         erepo = SQLEventRepository(db)
         prepo = SQLParticipantRepository(db)
         arepo = SQLAttendanceRepository(db)
         e = erepo.create("Cap", None, 2)
-        p1 = prepo.create("A", "a1@example.com")
-        p2 = prepo.create("B", "b1@example.com")
+        p1 = prepo.create("A", email1)
+        p2 = prepo.create("B", email2)
         assert arepo.count_attendees(e.id) == 0
         arepo.register(e.id, p1.id)
         arepo.register(e.id, p2.id)
